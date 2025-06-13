@@ -1,3 +1,4 @@
+
 import argparse
 import datetime
 import numpy as np
@@ -11,12 +12,12 @@ from collections import OrderedDict
 import torch.nn.functional as F
 import sys
 
-sys.path.append("/home/yangshu/Surgformer")
+sys.path.append("/media/SSD3/dlmanrique/Endovis/MICCAI2025/SOTAS/Surgformer/Surgformer-COLAS-2025")
 
 from datasets.transforms.mixup import Mixup
 from timm.models import create_model
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
-from timm.utils import ModelEma
+
 from datasets.transforms.optim_factory import (
     create_optimizer,
     get_parameter_groups,
@@ -30,13 +31,10 @@ from downstream_phase.engine_for_phase import (
     final_phase_test,
     merge,
 )
+
 from utils import NativeScalerWithGradNormCount as NativeScaler
-from utils import multiple_samples_collate
 import utils
 
-from model.surgformer_base import surgformer_base
-from model.surgformer_HTA import surgformer_HTA
-from model.surgformer_HTA_KCA import surgformer_HTA_KCA
 
 
 def get_args():

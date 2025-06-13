@@ -7,7 +7,6 @@ import torch
 from datasets.transforms.mixup import Mixup
 from timm.utils import accuracy, ModelEma
 import utils
-from datetime import datetime
 from scipy.special import softmax
 
 
