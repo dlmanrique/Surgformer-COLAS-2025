@@ -375,7 +375,7 @@ def get_args():
     parser.add_argument(
         "--world_size", default=1, type=int, help="number of distributed processes"
     )
-    parser.add_argument("--local_rank", default=-1, type=int)
+
     parser.add_argument("--dist_on_itp", action="store_true")
     parser.add_argument(
         "--dist_url", default="env://", help="url used to set up distributed training"
@@ -384,7 +384,7 @@ def get_args():
     parser.add_argument("--enable_deepspeed", action="store_true", default=False)
 
     known_args, _ = parser.parse_known_args()
-
+    
     if known_args.enable_deepspeed:
         try:
             import deepspeed
@@ -398,7 +398,11 @@ def get_args():
     else:
         ds_init = None
 
-    return parser.parse_args(), ds_init
+    args = parser.parse_args()
+    # Fixed local rank issue
+    args.local_rank = os.environ['LOCAL_RANK']
+
+    return args, ds_init
 
 
 def main(args, ds_init):
@@ -418,7 +422,7 @@ def main(args, ds_init):
         frame_manner = "Incremental_Stride"
     else:
         frame_manner = "Fixed_Stride_" + str(args.sampling_rate)
-
+    
     args.output_dir = os.path.join(
         args.output_dir,
         "_".join(
@@ -448,7 +452,7 @@ def main(args, ds_init):
         txt_file.write(str(args))
 
     device = torch.device(args.device)
-
+    
     # fix the seed for reproducibility
     seed = args.seed + utils.get_rank()
     torch.manual_seed(seed)
@@ -460,14 +464,15 @@ def main(args, ds_init):
     dataset_train, args.nb_classes = build_dataset(
         is_train=True, test_mode=False, fps=args.data_fps, args=args
     )  # Cholec80前40个数据集用于训练：2157640
+    
 
-    # 是否在训练时在验证集上测试性能
     if args.disable_eval_during_finetuning:
         dataset_val = None
     else:
         dataset_val, _ = build_dataset(
             is_train=False, test_mode=False, fps=args.data_fps, args=args
         )  # Cholec80第41-48视频序列用于验证集：535933
+
     dataset_test, _ = build_dataset(
         is_train=False, test_mode=True, fps=args.data_fps, args=args
     )  # Cholec80后40个数据集用于测试：2452890
@@ -475,6 +480,7 @@ def main(args, ds_init):
     print("Train Dataset Length: ", len(dataset_train))
     print("Val Dataset Length: ", len(dataset_val))
     print("Test Dataset Length: ", len(dataset_test))
+    breakpoint()
 
     num_tasks = utils.get_world_size()
     global_rank = utils.get_rank()
@@ -483,7 +489,7 @@ def main(args, ds_init):
     )
     print("Sampler_train = %s" % str(sampler_train))
 
-    if args.dist_eval:
+    if args.dist_eval: # True
         if len(dataset_val) % num_tasks != 0:
             print(
                 "Warning: Enabling distributed evaluation with an eval dataset not divisible by process number. "
@@ -561,6 +567,8 @@ def main(args, ds_init):
             num_classes=args.nb_classes,
         )
 
+    breakpoint()
+    
     model = create_model(
         args.model,
         pretrained=True,

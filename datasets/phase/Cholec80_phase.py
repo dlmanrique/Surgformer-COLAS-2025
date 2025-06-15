@@ -128,6 +128,7 @@ class PhaseDataset_Cholec80(Dataset):
         keep_aspect_ratio=True,
         args=None,
     ):
+        
         self.anno_path = anno_path
         self.data_path = data_path
         self.mode = mode
@@ -148,10 +149,14 @@ class PhaseDataset_Cholec80(Dataset):
         # Augment
         self.aug = False
         self.rand_erase = False
+
+        
         if self.mode in ["train"]:
             self.aug = True
             if self.args.reprob > 0:  # default: 0.25
                 self.rand_erase = True
+
+            
         self.infos = pickle.load(open(self.anno_path, "rb"))
         self.dataset_samples = self._make_dataset(self.infos)
 
@@ -165,7 +170,7 @@ class PhaseDataset_Cholec80(Dataset):
                         (self.short_side_size, self.short_side_size),
                         interpolation="bilinear",
                     ),
-                    # video_transforms.CenterCrop(size=(self.crop_size, self.crop_size)),
+
                     volume_transforms.ClipToTensor(),
                     video_transforms.Normalize(
                         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
@@ -308,9 +313,6 @@ class PhaseDataset_Cholec80(Dataset):
                     frames, frame_id, video_id, index, self.cut_black
                 )  # T H W C
 
-            # dim = (int(buffer[0].shape[1] / buffer[0].shape[0] * 300), 300)
-            # buffer = [cv2.resize(frame, dim) for frame in buffer]
-            # buffer = [self.filter_black(frame) for frame in buffer]
             buffer = self.data_resize(buffer)
             if isinstance(buffer, list):
                 buffer = np.stack(buffer, 0)
@@ -465,9 +467,9 @@ class PhaseDataset_Cholec80(Dataset):
                     self.data_path,
                     "frames",
                     line_info["video_id"],
-                    str(line_info["frame_id"]).zfill(5) + ".png",
+                    str(line_info["frame_id"]).zfill(5) + ".jpg",
                 )
-                # 当使用1fps采样时，line_info["frame_id"]类似于对应的序号，line_info["original_frame_id"]表示对应的图像序号
+
                 line_info["img_path"] = img_path
                 frames.append(line_info)
         return frames
@@ -588,12 +590,7 @@ class PhaseDataset_Cholec80(Dataset):
                     path = path.replace('frames', 'frames_cutmargin')
                 image_data = Image.open(path)
                 phase_label = self.dataset_samples[image_index]["phase_gt"]
-                # PIL可视化
-                # image_data.show()
-                # cv2可视化
-                # img = cv2.cvtColor(np.asarray(image_data), cv2.COLOR_RGB2BGR)
-                # cv2.imshow(str(num), img)
-                # cv2.waitKey()
+
                 sampled_image_list.append(image_data)
                 sampled_label_list.append(phase_label)
             except:

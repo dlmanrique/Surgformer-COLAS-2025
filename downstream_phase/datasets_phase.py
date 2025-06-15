@@ -7,7 +7,7 @@ from datasets.phase.AutoLaparo_phase import PhaseDataset_AutoLaparo
 
 def build_dataset(is_train, test_mode, fps, args):
     """Load video phase recognition dataset."""
-
+    
     if args.data_set == "Cholec80":
         mode = None
         anno_path = None
@@ -17,14 +17,15 @@ def build_dataset(is_train, test_mode, fps, args):
                 args.data_path, "labels", mode, fps + "train.pickle"
             )
         elif test_mode is True:
-            mode = "test"
+            mode = "val"
             anno_path = os.path.join(
-                args.data_path, "labels", mode, fps + "val_test.pickle"
+                args.data_path, "labels", mode, fps + "val.pickle"
             )
         else:
             mode = "test"  # for validation
-            anno_path = os.path.join(args.data_path, "labels", mode, fps + "val_test.pickle")
-
+            anno_path = os.path.join(args.data_path, "labels", mode, fps + "test.pickle")
+        
+        
         dataset = PhaseDataset_Cholec80(
             anno_path=anno_path,
             data_path=args.data_path,
