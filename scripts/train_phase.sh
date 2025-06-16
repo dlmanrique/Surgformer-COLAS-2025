@@ -1,11 +1,11 @@
-CUDA_VISIBLE_DEVICES=1 python -m torch.distributed.run  \
+CUDA_VISIBLE_DEVICES=3 python -m torch.distributed.run  \
 --nproc_per_node=1 \
 --master_port 12324 \
 downstream_phase/run_phase_training.py \
 --batch_size 8 \
 --epochs 50 \
 --save_ckpt_freq 10 \
---model  surgformer_base \
+--model surgformer_HTA \
 --pretrained_path Pretrained_weights/TimeSformer_divST_8x32_224_K400.pyth \
 --mixup 0.8 \
 --cutmix 1.0 \
@@ -24,6 +24,6 @@ downstream_phase/run_phase_training.py \
 --data_fps 1fps \
 --output_dir results/Cholec80 \
 --log_dir results/Cholec80 \
---num_workers 10 \
+--num_workers 0 \
 --dist_eval \
 --no_auto_resume

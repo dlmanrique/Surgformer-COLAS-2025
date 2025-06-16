@@ -2,10 +2,8 @@
 import torch
 import torch.nn as nn
 from functools import partial
-import torch.nn.functional as F
-import numpy as np
 import sys
-sys.path.append("/home/yangshu/Surgformer")
+sys.path.append("/media/SSD3/dlmanrique/Endovis/MICCAI2025/SOTAS/Surgformer/Surgformer-COLAS-2025")
 import utils
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
 from timm.models.registry import register_model

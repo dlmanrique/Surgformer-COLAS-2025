@@ -2,10 +2,8 @@
 import torch
 import torch.nn as nn
 from functools import partial
-import torch.nn.functional as F
-import numpy as np
 import sys
-sys.path.append("/home/yangshu/Surgformer")
+sys.path.append("/media/SSD3/dlmanrique/Endovis/MICCAI2025/SOTAS/Surgformer/Surgformer-COLAS-2025")
 import utils
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
 from timm.models.registry import register_model
@@ -376,6 +374,7 @@ class VisionTransformer(nn.Module):
         drop_path_rate=0.0,
         norm_layer=nn.LayerNorm,
         all_frames=16,
+        **kwargs
     ):
         super().__init__()
         self.depth = depth
@@ -510,6 +509,7 @@ class VisionTransformer(nn.Module):
 
 @register_model
 def surgformer_HTA(pretrained=False, pretrain_path=None, **kwargs):
+    
     model = VisionTransformer(
         img_size=224,
         patch_size=16,
@@ -539,6 +539,7 @@ def surgformer_HTA(pretrained=False, pretrain_path=None, **kwargs):
             add_list = []
             for k in state_dict.keys():
                 if "blocks" in k and "qkv_4" in k:
+                    
                     k_init = k.replace("qkv_4", "qkv")
                     if k_init in checkpoint:
                         checkpoint[k] = checkpoint[k_init]
@@ -581,11 +582,6 @@ def surgformer_HTA(pretrained=False, pretrain_path=None, **kwargs):
                     del checkpoint[k]
             print(f"Removing keys from pretrained checkpoint:", ", ".join(remove_list))
 
-            # if 'time_embed' in checkpoint and state_dict['time_embed'].size(1) != checkpoint['time_embed'].size(1):
-            #     print('Resize the Time Embedding, from %s to %s' % (str(checkpoint['time_embed'].size(1)), str(state_dict['time_embed'].size(1))))
-            #     time_embed = checkpoint['time_embed'].transpose(1, 2)
-            #     new_time_embed = F.interpolate(time_embed, size=(state_dict['time_embed'].size(1)), mode='nearest')
-            #     checkpoint['time_embed'] = new_time_embed.transpose(1, 2)
             utils.load_state_dict(model, checkpoint)
 
         elif "model" in checkpoint.keys():

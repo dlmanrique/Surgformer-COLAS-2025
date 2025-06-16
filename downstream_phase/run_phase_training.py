@@ -35,6 +35,12 @@ from downstream_phase.engine_for_phase import (
 from utils import NativeScalerWithGradNormCount as NativeScaler
 import utils
 
+# Import the model for proper modification of model registry
+from model.surgformer_HTA import surgformer_HTA
+from model.surgformer_base import surgformer_base
+
+
+
 
 
 def get_args():
@@ -480,7 +486,6 @@ def main(args, ds_init):
     print("Train Dataset Length: ", len(dataset_train))
     print("Val Dataset Length: ", len(dataset_val))
     print("Test Dataset Length: ", len(dataset_test))
-    breakpoint()
 
     num_tasks = utils.get_world_size()
     global_rank = utils.get_rank()
@@ -567,7 +572,7 @@ def main(args, ds_init):
             num_classes=args.nb_classes,
         )
 
-    breakpoint()
+    
     
     model = create_model(
         args.model,
@@ -581,6 +586,7 @@ def main(args, ds_init):
         attn_drop_rate=args.attn_drop_rate,
         drop_block_rate=None,
     )
+    
     txt_file.write(str(model))
     txt_file.close()
 
@@ -594,8 +600,7 @@ def main(args, ds_init):
     print("Window size: = %s" % str(args.window_size))
     args.patch_size = patch_size
 
-    # 加载预训练参数，并且根据策略调整Patch_embedding，可直接加载基于VideoMAE预训练参数
-    # 也可以加载官方的VIT的预训练参数
+    
     if args.finetune:
         if args.finetune.startswith("https"):
             checkpoint = torch.hub.load_state_dict_from_url(
@@ -733,7 +738,7 @@ def main(args, ds_init):
         assigner = None
 
     if assigner is not None:
-        print("Assigned values = %s" % str(assigner.values))
+        print("Assigned values for layer decay = %s" % str(assigner.values))
 
     skip_weight_decay_list = model.no_weight_decay()
     print("Skip weight decay list: ", skip_weight_decay_list)
@@ -840,10 +845,12 @@ def main(args, ds_init):
     max_accuracy = 0.0
     max_epoch = 0
     for epoch in range(args.start_epoch, args.epochs):
+
         if args.distributed:
             data_loader_train.sampler.set_epoch(epoch)
         if log_writer is not None:
             log_writer.set_step(epoch * num_training_steps_per_epoch * args.update_freq)
+
         train_stats = train_one_epoch(
             model,
             criterion,
@@ -862,6 +869,7 @@ def main(args, ds_init):
             num_training_steps_per_epoch=num_training_steps_per_epoch,
             update_freq=args.update_freq,
         )
+
         if args.output_dir and args.save_ckpt:
             if (epoch + 1) % args.save_ckpt_freq == 0 or epoch + 1 == args.epochs:
                 utils.save_model(

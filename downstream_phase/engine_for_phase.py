@@ -74,7 +74,7 @@ def train_one_epoch(
                     param_group["lr"] = lr_schedule_values[it] * param_group["lr_scale"]
                 if wd_schedule_values is not None and param_group["weight_decay"] > 0:
                     param_group["weight_decay"] = wd_schedule_values[it]
-
+        breakpoint()
         samples = samples.to(device, non_blocking=True)
         targets = targets.to(device, non_blocking=True)
 
