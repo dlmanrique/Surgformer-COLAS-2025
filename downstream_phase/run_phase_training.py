@@ -322,7 +322,7 @@ def get_args():
     parser.add_argument(
         "--data_set",
         default="AutoLaparo",
-        choices=["Cholec80", "AutoLaparo"],
+        choices=["Cholec80", "Autolaparo", 'HeiChole', 'M2CAI', 'HeiCo'],
         type=str,
         help="dataset",
     )
@@ -556,7 +556,7 @@ def main(args, ds_init):
     else:
         data_loader_test = None
 
-    # 训练Trick，有效显著的数据增强效果，参见：https://blog.csdn.net/sophicchen/article/details/120432083
+
     mixup_fn = None
     mixup_active = args.mixup > 0 or args.cutmix > 0.0 or args.cutmix_minmax is not None
     if mixup_active:
@@ -811,7 +811,7 @@ def main(args, ds_init):
         criterion = torch.nn.CrossEntropyLoss()
 
     print("criterion = %s" % str(criterion))
-
+    
     utils.auto_load_model(
         args=args,
         model=model,
@@ -822,6 +822,7 @@ def main(args, ds_init):
     )
 
     if args.eval:
+        
         preds_file = os.path.join(args.output_dir, str(global_rank) + ".txt")
         test_stats = final_phase_test(data_loader_test, model, device, preds_file)
         print("Save Files: ", preds_file)
@@ -870,7 +871,8 @@ def main(args, ds_init):
             update_freq=args.update_freq,
         )
 
-        if args.output_dir and args.save_ckpt:
+
+        """if args.output_dir and args.save_ckpt:
             if (epoch + 1) % args.save_ckpt_freq == 0 or epoch + 1 == args.epochs:
                 utils.save_model(
                     args=args,
@@ -880,7 +882,7 @@ def main(args, ds_init):
                     loss_scaler=loss_scaler,
                     epoch=epoch,
                     model_ema=None,
-                )
+                )"""
         if data_loader_val is not None:
             test_stats = validation_one_epoch(data_loader_val, model, device)
             print(
@@ -896,7 +898,7 @@ def main(args, ds_init):
                         model_without_ddp=model_without_ddp,
                         optimizer=optimizer,
                         loss_scaler=loss_scaler,
-                        epoch="best",
+                        epoch=f"best-epoch{epoch}-acc1-{max_accuracy}",
                         model_ema=None,
                     )
 

@@ -108,17 +108,17 @@ def tensor_normalize(tensor, mean, std):
     return tensor
 
 
-class PhaseDataset_AutoLaparo(Dataset):
+class PhaseDataset_HeiChole(Dataset):
     """Load video phase recognition dataset."""
 
     def __init__(
         self,
-        anno_path="data/AutoLaparo/labels_pkl/train/1fpstrain.pickle",
-        data_path="data/AutoLaparo",
+        anno_path="data/HeiChole/labels/train/train.pickle",
+        data_path="data/HeiChole",
         mode="train",  # val/test
         data_strategy="online",  # offline
         output_mode="key_frame",  # all_frame
-        cut_black=False,
+        cut_black=True,
         clip_len=16,
         frame_sample_rate=2,  # 0表示指数级间隔，-1表示随机间隔设置, -2表示递增间隔
         crop_size=224,
@@ -128,6 +128,7 @@ class PhaseDataset_AutoLaparo(Dataset):
         keep_aspect_ratio=True,
         args=None,
     ):
+        
         self.anno_path = anno_path
         self.data_path = data_path
         self.mode = mode
@@ -148,10 +149,14 @@ class PhaseDataset_AutoLaparo(Dataset):
         # Augment
         self.aug = False
         self.rand_erase = False
+
+        
         if self.mode in ["train"]:
             self.aug = True
             if self.args.reprob > 0:  # default: 0.25
                 self.rand_erase = True
+
+            
         self.infos = pickle.load(open(self.anno_path, "rb"))
         self.dataset_samples = self._make_dataset(self.infos)
 
@@ -165,7 +170,7 @@ class PhaseDataset_AutoLaparo(Dataset):
                         (self.short_side_size, self.short_side_size),
                         interpolation="bilinear",
                     ),
-                    # video_transforms.CenterCrop(size=(self.crop_size, self.crop_size)),
+
                     volume_transforms.ClipToTensor(),
                     video_transforms.Normalize(
                         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
@@ -193,6 +198,7 @@ class PhaseDataset_AutoLaparo(Dataset):
 
     def __getitem__(self, index):
         if self.mode == "train":
+            
             args = self.args
             frames_info = self.dataset_samples[index]
             video_id, frame_id, frames = (
@@ -202,7 +208,7 @@ class PhaseDataset_AutoLaparo(Dataset):
             )
             if self.data_strategy == "online":
                 buffer, phase_labels, sampled_list = self._video_batch_loader(
-                    frames, frame_id, video_id, index, False
+                    frames, frame_id, video_id, index, True
                 )  # T H W C
             elif self.data_strategy == "offline":
                 (
@@ -210,9 +216,9 @@ class PhaseDataset_AutoLaparo(Dataset):
                     phase_labels,
                     sampled_list,
                 ) = self._video_batch_loader_for_key_frames(
-                    frames, frame_id, video_id, index, False
+                    frames, frame_id, video_id, index, True
                 )  # T H W C
-
+            
             buffer = self._aug_frame(buffer, args)
 
             if self.output_mode == "key_frame":
@@ -308,9 +314,6 @@ class PhaseDataset_AutoLaparo(Dataset):
                     frames, frame_id, video_id, index, self.cut_black
                 )  # T H W C
 
-            # dim = (int(buffer[0].shape[1] / buffer[0].shape[0] * 300), 300)
-            # buffer = [cv2.resize(frame, dim) for frame in buffer]
-            # buffer = [self.filter_black(frame) for frame in buffer]
             buffer = self.data_resize(buffer)
             if isinstance(buffer, list):
                 buffer = np.stack(buffer, 0)
@@ -347,7 +350,21 @@ class PhaseDataset_AutoLaparo(Dataset):
         else:
             raise NameError("mode {} unkown".format(self.mode))
 
+
+
+    def process_image(self, path):
+        
+        frame = cv2.imread(path)
+        dim = (int(frame.shape[1] / frame.shape[0] * 300), 300)
+        frame = cv2.resize(frame, dim)
+        frame = self.filter_black(frame)
+        img_result = cv2.resize(frame, (250, 250))
+        img_result = cv2.cvtColor(img_result, cv2.COLOR_BGR2RGB)
+
+        return img_result
+    
     def filter_black(self, image):
+
         binary_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         _, binary_image2 = cv2.threshold(binary_image, 15, 255, cv2.THRESH_BINARY)
         binary_image2 = cv2.medianBlur(
@@ -441,11 +458,7 @@ class PhaseDataset_AutoLaparo(Dataset):
             buffer = erase_transform(buffer)
             buffer = buffer.permute(1, 0, 2, 3)
 
-        # Vis
-        # for k in range(buffer.shape[1]):
-        #     img = cv2.cvtColor(np.asarray(buffer[:,k,:,:]).transpose(1,2,0), cv2.COLOR_RGB2BGR)
-        #     cv2.imshow(str(k), img)
-        #     cv2.waitKey()
+
         return buffer
 
     def _make_dataset(self, infos):
@@ -465,15 +478,15 @@ class PhaseDataset_AutoLaparo(Dataset):
                     self.data_path,
                     "frames",
                     line_info["video_id"],
-                    str(line_info["original_frame_id"]).zfill(5) + ".png"
-                    if "original_frame_id" in line_info
-                    else str(line_info["frame_id"]).zfill(5) + ".png",
+                    str(line_info["frame_id"]).zfill(5) + ".png",
                 )
+
                 line_info["img_path"] = img_path
                 frames.append(line_info)
         return frames
 
     def _video_batch_loader(self, duration, indice, video_id, index, cut_black):
+        
         offset_value = index - indice
         frame_sample_rate = self.frame_sample_rate
         sampled_list = []
@@ -493,23 +506,34 @@ class PhaseDataset_AutoLaparo(Dataset):
         sampled_image_list = []
         sampled_label_list = []
         image_name_list = []
+        
         for num, image_index in enumerate(sampled_list):
+            
             try:
                 image_name_list.append(self.dataset_samples[image_index]["img_path"])
                 path = self.dataset_samples[image_index]["img_path"]
                 if cut_black:
-                    path = path.replace('frames', 'frames_cutmargin')
+                    #path = path.replace('frames', 'frames_cutmargin') -> not neccesary
+                    pass
+
                 image_data = Image.open(path)
+                width, height = image_data.size
+
+                # Calcular coordenadas del crop centrado
+                left = (width - 250) // 2
+                top = (height - 250) // 2
+                right = left + 250
+                bottom = top + 250
+
+                # Recortar
+                image_data = image_data.crop((left, top, right, bottom))
+
                 phase_label = self.dataset_samples[image_index]["phase_gt"]
-                # PIL可视化
-                # image_data.show()
-                # cv2可视化
-                # img = cv2.cvtColor(np.asarray(image_data), cv2.COLOR_RGB2BGR)
-                # cv2.imshow(str(num), img)
-                # cv2.waitKey()
+
                 sampled_image_list.append(image_data)
                 sampled_label_list.append(phase_label)
             except:
+                
                 raise RuntimeError(
                     "Error occured in reading frames {} from video {} of path {} (Unique_id: {}).".format(
                         frame_id_list[num],
@@ -518,17 +542,14 @@ class PhaseDataset_AutoLaparo(Dataset):
                         image_index,
                     )
                 )
+        
         video_data = np.stack(sampled_image_list)
         phase_data = np.stack(sampled_label_list)
 
         return video_data, phase_data, sampled_list
 
     def _video_batch_loader_for_key_frames(self, duration, timestamp, video_id, index, cut_black):
-        # 永远控制的只有对应帧序号和整个视频序列有效视频数目，不受采样FPS影响，根据标签映射回对应image path
-        # 当前视频内帧序号为timestamp,
-        # 当前数据集内帧序号为index
-        # 为了保证偶数输入的前序帧以及后续帧数目保持一致，中间double了关键帧
-        # 如果为奇数，则中间帧位于中间，但是3D卷积不适用于偶数kernel及stride
+
         right_len = self.clip_len // 2
         left_len = self.clip_len - right_len
         offset_value = index - timestamp
@@ -589,12 +610,7 @@ class PhaseDataset_AutoLaparo(Dataset):
                     path = path.replace('frames', 'frames_cutmargin')
                 image_data = Image.open(path)
                 phase_label = self.dataset_samples[image_index]["phase_gt"]
-                # PIL可视化
-                # image_data.show()
-                # cv2可视化
-                # img = cv2.cvtColor(np.asarray(image_data), cv2.COLOR_RGB2BGR)
-                # cv2.imshow(str(num), img)
-                # cv2.waitKey()
+
                 sampled_image_list.append(image_data)
                 sampled_label_list.append(phase_label)
             except:
@@ -615,24 +631,24 @@ class PhaseDataset_AutoLaparo(Dataset):
 
 
 def build_dataset(is_train, test_mode, fps, args):
-    if args.data_set == "AutoLaparo":
+    if args.data_set == "HeiChole":
         mode = None
         anno_path = None
         if is_train is True:
             mode = "train"
             anno_path = os.path.join(
-                args.data_path, "labels_pkl", mode, fps + "train.pickle"
+                args.data_path, "labels", mode, fps + "train.pickle"
             )
         elif test_mode is True:
             mode = "test"
             anno_path = os.path.join(
-                args.data_path, "labels_pkl", mode, fps + "test.pickle"
+                args.data_path, "labels", mode, fps + "val_test.pickle"
             )
         else:
             mode = "val"
-            anno_path = os.path.join(args.data_path, "labels_pkl", mode, fps + "val.pickle")
+            anno_path = os.path.join(args.data_path, "labels", mode, fps + "val_test.pickle")
 
-        dataset = PhaseDataset_AutoLaparo(
+        dataset = PhaseDataset_HeiChole(
             anno_path=anno_path,
             data_path=args.data_path,
             mode=mode,
@@ -640,7 +656,7 @@ def build_dataset(is_train, test_mode, fps, args):
             output_mode="key_frame",
             cut_black=False,
             clip_len=8,
-            frame_sample_rate=4,  # 0表示指数级间隔，-1表示随机间隔设置, -2表示递增间隔
+            frame_sample_rate=8,  # 0表示指数级间隔，-1表示随机间隔设置, -2表示递增间隔
             keep_aspect_ratio=True,
             crop_size=args.input_size,
             short_side_size=args.short_side_size,
@@ -650,6 +666,6 @@ def build_dataset(is_train, test_mode, fps, args):
         )
         nb_classes = 7
     assert nb_classes == args.nb_classes
-    print("%s %s - %s : Number of the class = %d" % ("AutoLaparo", mode, fps, args.nb_classes))
+    print("%s %s - %s : Number of the class = %d" % ("HeiChole", mode, fps, args.nb_classes))
 
     return dataset, nb_classes

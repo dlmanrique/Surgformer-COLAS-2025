@@ -1,8 +1,8 @@
-CUDA_VISIBLE_DEVICES=3 python -m torch.distributed.run  \
---nproc_per_node=1 \
+CUDA_VISIBLE_DEVICES=5,6,7 python -m torch.distributed.run  \
+--nproc_per_node=3 \
 --master_port 12324 \
 downstream_phase/run_phase_training.py \
---batch_size 8 \
+--batch_size 18 \
 --epochs 50 \
 --save_ckpt_freq 10 \
 --model surgformer_HTA \
@@ -13,17 +13,17 @@ downstream_phase/run_phase_training.py \
 --lr 5e-4 \
 --layer_decay 0.75 \
 --warmup_epochs 5 \
---data_path data/Cholec80 \
---eval_data_path data/Cholec80 \
+--data_path data/HeiChole \
+--eval_data_path data/HeiChole \
 --nb_classes 7 \
 --data_strategy online \
 --output_mode key_frame \
 --num_frames 16 \
 --sampling_rate 4 \
---data_set Cholec80 \
+--data_set HeiChole \
 --data_fps 1fps \
---output_dir results/Cholec80 \
---log_dir results/Cholec80 \
+--output_dir results/HeiChole \
+--log_dir results/HeiChole \
 --num_workers 0 \
 --dist_eval \
 --no_auto_resume

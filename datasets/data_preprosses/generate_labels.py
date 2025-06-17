@@ -177,15 +177,17 @@ def create_pickle_file(args):
         all_train_info, all_test_info, all_valid_info = process_split_data([train_images_df, train_annots_df, phases_info],
                                                                             [test_images_df, test_annots_df])
 
-    os.makedirs(f'data/{args.dataset}', exist_ok=True)
-    with open(os.path.join(f'data/{args.dataset}', '1fps_train.pickle'), 'wb') as file:
+    os.makedirs(f'data/{args.dataset}/train', exist_ok=True)
+    with open(os.path.join(f'data/{args.dataset}/train', '1fpstrain.pickle'), 'wb') as file:
         pickle.dump(all_train_info, file)
-
-    with open(os.path.join(f'data/{args.dataset}', '1fps_test.pickle'), 'wb') as file:
+    
+    os.makedirs(f'data/{args.dataset}/test', exist_ok=True)
+    with open(os.path.join(f'data/{args.dataset}/test', '1fpstest.pickle'), 'wb') as file:
         pickle.dump(all_test_info, file)
 
+    os.makedirs(f'data/{args.dataset}/val', exist_ok=True)
     if all_valid_info:
-        with open(os.path.join(f'data/{args.dataset}', '1fps_valid.pickle'), 'wb') as file:
+        with open(os.path.join(f'data/{args.dataset}/val', '1fpsval.pickle'), 'wb') as file:
             pickle.dump(all_valid_info, file)
 
 if __name__ == "__main__":

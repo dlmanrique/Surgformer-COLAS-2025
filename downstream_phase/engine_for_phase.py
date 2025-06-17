@@ -8,7 +8,7 @@ from datasets.transforms.mixup import Mixup
 from timm.utils import accuracy, ModelEma
 import utils
 from scipy.special import softmax
-
+from tqdm import tqdm
 
 def train_class_batch(model, samples, target, criterion):
     outputs = model(samples)
@@ -49,7 +49,7 @@ def train_one_epoch(
     metric_logger.add_meter("min_lr", utils.SmoothedValue(window_size=1, fmt="{value:.6f}"))
     header = "Epoch: [{}]".format(epoch)
     print_freq = 10
-
+    
     if loss_scaler is None:
         model.zero_grad()
         model.micro_steps = 0
@@ -74,7 +74,7 @@ def train_one_epoch(
                     param_group["lr"] = lr_schedule_values[it] * param_group["lr_scale"]
                 if wd_schedule_values is not None and param_group["weight_decay"] > 0:
                     param_group["weight_decay"] = wd_schedule_values[it]
-        breakpoint()
+
         samples = samples.to(device, non_blocking=True)
         targets = targets.to(device, non_blocking=True)
 
@@ -85,7 +85,7 @@ def train_one_epoch(
             samples = samples.half()
             loss, output = train_class_batch(model, samples, targets, criterion)
         else:
-            with torch.cuda.amp.autocast():
+            with torch.amp.autocast('cuda'):
                 loss, output = train_class_batch(model, samples, targets, criterion)
 
         loss_value = loss.item()
@@ -186,18 +186,11 @@ def validation_one_epoch(data_loader, model, device):
         target = target.to(device, non_blocking=True)
 
         # compute output
-        with torch.cuda.amp.autocast():
+        with torch.amp.autocast('cuda'):
             output = model(videos)
             loss = criterion(output, target)
         
-        # for i in range(output.size(0)):
-        #     if flags[i]:
-        #         if target[i] == 0:
-        #             output.data[i] = torch.tensor([1, 0, 0, 0, 0, 0, 0])
-        #         elif target[i] == 1:
-        #             output.data[i] = torch.tensor([0, 1, 0, 0, 0, 0, 0])
-        #         elif target[i] == 2:
-        #             output.data[i] = torch.tensor([0, 0, 1, 0, 0, 0, 0])
+
 
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
 
@@ -218,6 +211,7 @@ def validation_one_epoch(data_loader, model, device):
 
 @torch.no_grad()
 def final_phase_test(data_loader, model, device, file):
+    
     criterion = torch.nn.CrossEntropyLoss()
 
     metric_logger = utils.MetricLogger(delimiter="  ")
@@ -226,8 +220,8 @@ def final_phase_test(data_loader, model, device, file):
     # switch to evaluation mode
     model.eval()
     final_result = []
-
-    for batch in metric_logger.log_every(data_loader, 10, header):
+    print('Performing Test')
+    for batch in tqdm(data_loader): #Modified to speed up test
         videos = batch[0]
         target = batch[1]
         ids = batch[2]
@@ -236,21 +230,16 @@ def final_phase_test(data_loader, model, device, file):
         target = target.to(device, non_blocking=True)
 
         # compute output
-        with torch.cuda.amp.autocast():
+        with torch.amp.autocast('cuda'):
             output = model(videos)  
             # Output: N,7
             # Target: N,
             loss = criterion(output, target)
 
         for i in range(output.size(0)):
-            unique_id, video_id, frame_id = ids[i].strip().split('_')
-            # if flags[i]:
-            #     if target[i] == 0:
-            #         output.data[i] = torch.tensor([1, 0, 0, 0, 0, 0, 0])
-            #     elif target[i] == 1:
-            #         output.data[i] = torch.tensor([0, 1, 0, 0, 0, 0, 0])
-            #     elif target[i] == 2:
-            #         output.data[i] = torch.tensor([0, 0, 1, 0, 0, 0, 0])
+            
+            unique_id, _, video_id, frame_id = ids[i].strip().split('_')
+            video_id = f'video_{video_id}'
 
             string = "{} {} {} {} {}\n".format(
                 unique_id,
@@ -267,6 +256,7 @@ def final_phase_test(data_loader, model, device, file):
         metric_logger.update(loss=loss.item())
         metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
         metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
+
 
     if not os.path.exists(file):
         # os.mknod(file)  # 用于创建一个指定文件名的文件系统节点，暂时无权限
