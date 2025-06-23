@@ -525,7 +525,7 @@ def surgformer_HTA(pretrained=False, pretrain_path=None, **kwargs):
 
     if pretrained:
         print("Load ckpt from %s" % pretrain_path)
-        checkpoint = torch.load(pretrain_path, map_location="cpu")
+        checkpoint = torch.load(pretrain_path, map_location="cpu", weights_only=False)
         state_dict = model.state_dict()
         if "model_state" in checkpoint.keys():
             checkpoint = checkpoint["model_state"]

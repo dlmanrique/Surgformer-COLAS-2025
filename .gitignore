@@ -9,3 +9,4 @@ datasets/phase/__pycache__
 datasets/transforms/__pycache__
 data
 Pretrained_weights
+Surgformer_preds
