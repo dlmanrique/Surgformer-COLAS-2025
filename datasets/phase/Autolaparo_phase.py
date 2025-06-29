@@ -113,7 +113,7 @@ class PhaseDataset_Autolaparo(Dataset):
 
     def __init__(
         self,
-        anno_path="data/AutoLaparo/labels_pkl/train/1fpstrain.pickle",
+        anno_path="data/HeiChole/labels/train/train.pickle",
         data_path="data/AutoLaparo",
         mode="train",  # val/test
         data_strategy="online",  # offline
@@ -465,9 +465,9 @@ class PhaseDataset_Autolaparo(Dataset):
                     self.data_path,
                     "frames",
                     line_info["video_id"],
-                    str(line_info["original_frame_id"]).zfill(5) + ".png"
+                    str(line_info["original_frame_id"]).zfill(5) + ".jpg"
                     if "original_frame_id" in line_info
-                    else str(line_info["frame_id"]).zfill(5) + ".png",
+                    else str(line_info["frame_id"]).zfill(5) + ".jpg",
                 )
                 line_info["img_path"] = img_path
                 frames.append(line_info)
@@ -493,6 +493,7 @@ class PhaseDataset_Autolaparo(Dataset):
         sampled_image_list = []
         sampled_label_list = []
         image_name_list = []
+        
         for num, image_index in enumerate(sampled_list):
             try:
                 image_name_list.append(self.dataset_samples[image_index]["img_path"])
@@ -518,17 +519,14 @@ class PhaseDataset_Autolaparo(Dataset):
                         image_index,
                     )
                 )
-        video_data = np.stack(sampled_image_list)
+
+        video_data = np.stack(sampled_image_list) # En este caso todo Autolaparo mide 1079x1919
         phase_data = np.stack(sampled_label_list)
 
         return video_data, phase_data, sampled_list
 
     def _video_batch_loader_for_key_frames(self, duration, timestamp, video_id, index, cut_black):
-        # 永远控制的只有对应帧序号和整个视频序列有效视频数目，不受采样FPS影响，根据标签映射回对应image path
-        # 当前视频内帧序号为timestamp,
-        # 当前数据集内帧序号为index
-        # 为了保证偶数输入的前序帧以及后续帧数目保持一致，中间double了关键帧
-        # 如果为奇数，则中间帧位于中间，但是3D卷积不适用于偶数kernel及stride
+
         right_len = self.clip_len // 2
         left_len = self.clip_len - right_len
         offset_value = index - timestamp
@@ -621,16 +619,16 @@ def build_dataset(is_train, test_mode, fps, args):
         if is_train is True:
             mode = "train"
             anno_path = os.path.join(
-                args.data_path, "labels_pkl", mode, fps + "train.pickle"
+                args.data_path, "labels", mode, fps + "train.pickle"
             )
         elif test_mode is True:
             mode = "test"
             anno_path = os.path.join(
-                args.data_path, "labels_pkl", mode, fps + "test.pickle"
+                args.data_path, "labels", mode, fps + "test.pickle"
             )
         else:
             mode = "val"
-            anno_path = os.path.join(args.data_path, "labels_pkl", mode, fps + "val.pickle")
+            anno_path = os.path.join(args.data_path, "labels", mode, fps + "val.pickle")
 
         dataset = PhaseDataset_AutoLaparo(
             anno_path=anno_path,

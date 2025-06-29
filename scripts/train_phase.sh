@@ -1,5 +1,5 @@
-CUDA_VISIBLE_DEVICES=0,1,2,4 python -m torch.distributed.run  \
---nproc_per_node=4 \
+CUDA_VISIBLE_DEVICES=0,1,2 python -m torch.distributed.run  \
+--nproc_per_node=3 \
 --master_port 12324 \
 downstream_phase/run_phase_training.py \
 --batch_size 18 \
@@ -13,17 +13,17 @@ downstream_phase/run_phase_training.py \
 --lr 5e-4 \
 --layer_decay 0.75 \
 --warmup_epochs 5 \
---data_path data/M2CAI \
---eval_data_path data/M2CAI \
---nb_classes 8 \
+--data_path data/Autolaparo \
+--eval_data_path data/Autolaparo \
+--nb_classes 7 \
 --data_strategy online \
 --output_mode key_frame \
 --num_frames 16 \
 --sampling_rate 4 \
---data_set M2CAI \
+--data_set Autolaparo \
 --data_fps 1fps \
---output_dir results/M2CAI \
---log_dir results/M2CAI \
+--output_dir results/Autolaparo \
+--log_dir results/Autolaparo \
 --num_workers 10 \
 --dist_eval \
 --no_auto_resume

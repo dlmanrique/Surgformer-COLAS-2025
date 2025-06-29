@@ -46,26 +46,26 @@ def build_dataset(is_train, test_mode, fps, args):
         )
         nb_classes = 7
     
-    elif args.data_set == "AutoLaparo":
+    elif args.data_set == "Autolaparo":
         mode = None
         anno_path = None
         if is_train is True:
             mode = "train"
             anno_path = os.path.join(
-                args.data_path, "labels_pkl", mode, fps + "train.pickle"
+                args.data_path, "labels", mode, fps + "train.pickle"
             )
         elif test_mode is True:
             mode = "test"
             # args.data_path = "/jhcnas1/yangshu/data/AutoLaparo"
             anno_path = os.path.join(
-                args.data_path, "labels_pkl", mode, fps + "test.pickle"
+                args.data_path, "labels", mode, fps + "test.pickle"
             )
         else:
             mode = "val"
             # args.data_path = "/jhcnas1/yangshu/data/AutoLaparo"
-            anno_path = os.path.join(args.data_path, "labels_pkl", mode, fps + "val.pickle")
+            anno_path = os.path.join(args.data_path, "labels", mode, fps + "val.pickle")
         
-        dataset = PhaseDataset_AutoLaparo(
+        dataset = PhaseDataset_Autolaparo(
             anno_path=anno_path,
             data_path=args.data_path,
             mode=mode,
