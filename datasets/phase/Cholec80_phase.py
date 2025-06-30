@@ -1,9 +1,9 @@
 import os
 import cv2
 import numpy as np
-from numpy.lib.function_base import disp
+
 import torch
-import decord
+
 import pickle
 from PIL import Image
 from torchvision import transforms
@@ -128,7 +128,7 @@ class PhaseDataset_Cholec80(Dataset):
         keep_aspect_ratio=True,
         args=None,
     ):
-        
+
         self.anno_path = anno_path
         self.data_path = data_path
         self.mode = mode
@@ -149,14 +149,10 @@ class PhaseDataset_Cholec80(Dataset):
         # Augment
         self.aug = False
         self.rand_erase = False
-
-        
         if self.mode in ["train"]:
             self.aug = True
             if self.args.reprob > 0:  # default: 0.25
                 self.rand_erase = True
-
-            
         self.infos = pickle.load(open(self.anno_path, "rb"))
         self.dataset_samples = self._make_dataset(self.infos)
 
@@ -170,7 +166,7 @@ class PhaseDataset_Cholec80(Dataset):
                         (self.short_side_size, self.short_side_size),
                         interpolation="bilinear",
                     ),
-
+                    # video_transforms.CenterCrop(size=(self.crop_size, self.crop_size)),
                     volume_transforms.ClipToTensor(),
                     video_transforms.Normalize(
                         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
@@ -198,7 +194,6 @@ class PhaseDataset_Cholec80(Dataset):
 
     def __getitem__(self, index):
         if self.mode == "train":
-            
             args = self.args
             frames_info = self.dataset_samples[index]
             video_id, frame_id, frames = (
@@ -218,7 +213,7 @@ class PhaseDataset_Cholec80(Dataset):
                 ) = self._video_batch_loader_for_key_frames(
                     frames, frame_id, video_id, index, True
                 )  # T H W C
-            
+
             buffer = self._aug_frame(buffer, args)
 
             if self.output_mode == "key_frame":
@@ -314,6 +309,9 @@ class PhaseDataset_Cholec80(Dataset):
                     frames, frame_id, video_id, index, self.cut_black
                 )  # T H W C
 
+            # dim = (int(buffer[0].shape[1] / buffer[0].shape[0] * 300), 300)
+            # buffer = [cv2.resize(frame, dim) for frame in buffer]
+            # buffer = [self.filter_black(frame) for frame in buffer]
             buffer = self.data_resize(buffer)
             if isinstance(buffer, list):
                 buffer = np.stack(buffer, 0)
@@ -350,21 +348,7 @@ class PhaseDataset_Cholec80(Dataset):
         else:
             raise NameError("mode {} unkown".format(self.mode))
 
-
-
-    def process_image(self, path):
-        
-        frame = cv2.imread(path)
-        dim = (int(frame.shape[1] / frame.shape[0] * 300), 300)
-        frame = cv2.resize(frame, dim)
-        frame = self.filter_black(frame)
-        img_result = cv2.resize(frame, (250, 250))
-        img_result = cv2.cvtColor(img_result, cv2.COLOR_BGR2RGB)
-
-        return img_result
-    
     def filter_black(self, image):
-
         binary_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         _, binary_image2 = cv2.threshold(binary_image, 15, 255, cv2.THRESH_BINARY)
         binary_image2 = cv2.medianBlur(
@@ -458,11 +442,16 @@ class PhaseDataset_Cholec80(Dataset):
             buffer = erase_transform(buffer)
             buffer = buffer.permute(1, 0, 2, 3)
 
-
+        # Vis
+        # for k in range(buffer.shape[1]):
+        #     img = cv2.cvtColor(np.asarray(buffer[:,k,:,:]).transpose(1,2,0), cv2.COLOR_RGB2BGR)
+        #     cv2.imshow(str(k), img)
+        #     cv2.waitKey()
         return buffer
 
     def _make_dataset(self, infos):
         frames = []
+
         for video_id in infos.keys():
             data = infos[video_id]
             for line_info in data:
@@ -480,7 +469,7 @@ class PhaseDataset_Cholec80(Dataset):
                     line_info["video_id"],
                     str(line_info["frame_id"]).zfill(5) + ".jpg",
                 )
-
+                # 当使用1fps采样时，line_info["frame_id"]类似于对应的序号，line_info["original_frame_id"]表示对应的图像序号
                 line_info["img_path"] = img_path
                 frames.append(line_info)
         return frames
@@ -508,28 +497,17 @@ class PhaseDataset_Cholec80(Dataset):
         image_name_list = []
         
         for num, image_index in enumerate(sampled_list):
-            
             try:
                 image_name_list.append(self.dataset_samples[image_index]["img_path"])
                 path = self.dataset_samples[image_index]["img_path"]
-                if cut_black:
-                    
-                    #path = path.replace('frames', 'frames_cutmargin') -> not neccesary
-                    pass
+                if True:
+                    path = path.replace('frames', 'frames_cutmargin')
 
                 image_data = Image.open(path)
-                width, height = image_data.size
-
-                # Calcular coordenadas del crop centrado
-                left = (width - 250) // 2
-                top = (height - 250) // 2
-                right = left + 250
-                bottom = top + 250
-
-                # Recortar
-                image_data = image_data.crop((left, top, right, bottom))
-
                 phase_label = self.dataset_samples[image_index]["phase_gt"]
+
+                if image_data.size != (250,250):
+                    print(f'Image with diferent shape is: {path}')
 
                 sampled_image_list.append(image_data)
                 sampled_label_list.append(phase_label)
@@ -542,14 +520,18 @@ class PhaseDataset_Cholec80(Dataset):
                         image_index,
                     )
                 )
-        
+            
         video_data = np.stack(sampled_image_list)
         phase_data = np.stack(sampled_label_list)
 
         return video_data, phase_data, sampled_list
 
     def _video_batch_loader_for_key_frames(self, duration, timestamp, video_id, index, cut_black):
-
+        # 永远控制的只有对应帧序号和整个视频序列有效视频数目，不受采样FPS影响，根据标签映射回对应image path
+        # 当前视频内帧序号为timestamp,
+        # 当前数据集内帧序号为index
+        # 为了保证偶数输入的前序帧以及后续帧数目保持一致，中间double了关键帧
+        # 如果为奇数，则中间帧位于中间，但是3D卷积不适用于偶数kernel及stride
         right_len = self.clip_len // 2
         left_len = self.clip_len - right_len
         offset_value = index - timestamp
@@ -610,7 +592,12 @@ class PhaseDataset_Cholec80(Dataset):
                     path = path.replace('frames', 'frames_cutmargin')
                 image_data = Image.open(path)
                 phase_label = self.dataset_samples[image_index]["phase_gt"]
-
+                # PIL可视化
+                # image_data.show()
+                # cv2可视化
+                # img = cv2.cvtColor(np.asarray(image_data), cv2.COLOR_RGB2BGR)
+                # cv2.imshow(str(num), img)
+                # cv2.waitKey()
                 sampled_image_list.append(image_data)
                 sampled_label_list.append(phase_label)
             except:

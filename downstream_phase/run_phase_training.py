@@ -12,7 +12,7 @@ from collections import OrderedDict
 import torch.nn.functional as F
 import sys
 
-sys.path.append("/media/SSD3/dlmanrique/Endovis/MICCAI2025/SOTAS/Surgformer/Surgformer-COLAS-2025")
+sys.path.append("/media/SSD4/dlmanrique/Endovis/COLAS_2025/Surgformer-COLAS-2025")
 
 from datasets.transforms.mixup import Mixup
 from timm.models import create_model
